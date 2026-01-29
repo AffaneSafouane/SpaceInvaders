@@ -20,6 +20,7 @@ public class GameEngine implements GLEventListener {
     private List<Alien> aliens;
     private List<Bullet> bullets;
     private List<Particle> particles;
+    private List<AlienBullet> alienBullets;
 
     // Swarm behavior
     private float swarmXSpeed = 2.0f;
@@ -90,6 +91,7 @@ public class GameEngine implements GLEventListener {
         // Initialize bullet and particle lists
         bullets = new ArrayList<>();
         particles = new ArrayList<>();
+        alienBullets = new ArrayList<>();
 
         // Reset game state
         gameState = GameState.PLAYING;
@@ -140,6 +142,10 @@ public class GameEngine implements GLEventListener {
             bullet.update();
         }
 
+        // Update alien bullets
+        alienBullets.removeIf(alienBullet -> !alienBullet.isActive());
+        for (AlienBullet ab: alienBullets) ab.update();
+
         // Update swarm movement
         updateSwarmMovement();
 
@@ -182,8 +188,17 @@ public class GameEngine implements GLEventListener {
             float moveAmount = Math.abs(swarmXSpeed) * swarmDirection;
             boolean hitEdge = false;
 
+            Map<Float, Alien> frontLineAliens = new HashMap<>();
+
             for (Alien alien : aliens) {
+                if(!alien.isActive()) continue;
+
                 alien.move(moveAmount, 0);
+
+                float xKey = alien.getX();
+                if(!frontLineAliens.containsKey(xKey) || alien.getY() < frontLineAliens.get(xKey).getY()) {
+                    frontLineAliens.put(xKey, alien);
+                }
 
                 // Check if any alien hit the edge
                 if (alien.getX() < 50 || alien.getX() > SCREEN_WIDTH - 50) {
@@ -194,10 +209,22 @@ public class GameEngine implements GLEventListener {
             // If hit edge, move down and reverse direction
             if (hitEdge) {
                 for (Alien alien : aliens) {
+                    if (!alien.isActive()) continue;
                     alien.move(-moveAmount, -20);  // Undo horizontal, move down
                 }
                 swarmDirection *= -1;
                 swarmXSpeed *= 1.1f;  // Speed up
+            }
+
+            // Shooting Logic, only the front-line aliens fire
+            // The chance increases as the swarmXSpeed increases
+            float shootChance = 0.05f * (Math.abs(swarmXSpeed) / 2.0f);
+            shootChance = Math.min(shootChance, 0.15f);
+
+            for (Alien shooter : frontLineAliens.values()) {
+                if (random.nextFloat() < shootChance) {
+                    alienBullets.add(new AlienBullet(shooter.getX(), shooter.getY() - 15));
+                }
             }
         }
     }
@@ -217,6 +244,33 @@ public class GameEngine implements GLEventListener {
                     spawnExplosion(alien.getX(), alien.getY());
                     break;
                 }
+            }
+        }
+
+        // Player Bullet vs Alien Bullet
+        for (Bullet pb : bullets) {
+            if(!pb.isActive()) continue;
+
+            for (AlienBullet ab : alienBullets) {
+                if(!ab.isActive()) continue;
+
+                if(pb.collidesWith(ab)) {
+                    pb.setActive(false);
+                    ab.setActive(false);
+                    spawnExplosion(ab.getX(), ab.getY());
+                    break;
+                }
+            }
+        }
+
+        // Alien Bullet vs Player
+        for (AlienBullet ab : alienBullets) {
+            if(!ab.isActive()) continue;
+            if(ab.collidesWith(player)) {
+                ab.setActive(false);
+                gameState = GameState.GAME_OVER;
+                spawnExplosion(player.getX(), player.getY());
+                break;
             }
         }
 
@@ -262,6 +316,11 @@ public class GameEngine implements GLEventListener {
         // Render bullets
         for (Bullet bullet : bullets) {
             bullet.display(gl);
+        }
+
+        // Render alien bullets
+        for (AlienBullet ab : alienBullets) {
+            ab.display(gl);
         }
 
         // Render particles
