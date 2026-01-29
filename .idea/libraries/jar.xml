@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="jar">
+    <CLASSES>
+      <root url="file://$USER_HOME$/Shared_Data/Saf/L3Pro/TP/Java/jogamp-all-platforms/jar" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="file://$USER_HOME$/Shared_Data/Saf/L3Pro/TP/Java/jogamp-all-platforms/jar" />
+    </SOURCES>
+    <jarDirectory url="file://$USER_HOME$/Shared_Data/Saf/L3Pro/TP/Java/jogamp-all-platforms/jar" recursive="false" />
+    <jarDirectory url="file://$USER_HOME$/Shared_Data/Saf/L3Pro/TP/Java/jogamp-all-platforms/jar" recursive="false" type="SOURCES" />
+  </library>
+</component>
