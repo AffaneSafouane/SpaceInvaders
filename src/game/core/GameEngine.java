@@ -21,6 +21,7 @@ public class GameEngine implements GLEventListener {
     private List<Bullet> bullets;
     private List<Particle> particles;
     private List<AlienBullet> alienBullets;
+    private List<Wall> walls;
 
     // Swarm behavior
     private float swarmXSpeed = 2.0f;
@@ -93,6 +94,15 @@ public class GameEngine implements GLEventListener {
         particles = new ArrayList<>();
         alienBullets = new ArrayList<>();
 
+        // Initialize walls
+        walls = new ArrayList<>();
+        int wallCount = 4;
+        float wallY = 150;
+        for (int i = 0; i < wallCount; i++) {
+            float x = (SCREEN_WIDTH / (wallCount + 1)) * (i + 1);
+            walls.add(new Wall(x, wallY));
+        }
+
         // Reset game state
         gameState = GameState.PLAYING;
         score = 0;
@@ -160,6 +170,8 @@ public class GameEngine implements GLEventListener {
         for (Particle particle : particles) {
             particle.update();
         }
+
+        walls.removeIf(Wall::isDestroyed);
 
         // Collision detection
         checkCollisions();
@@ -247,6 +259,17 @@ public class GameEngine implements GLEventListener {
             }
         }
 
+        // Alien vs Player collisions
+        for (Alien alien : aliens) {
+            if (!alien.isActive()) continue;
+
+            if (alien.collidesWith(player)) {
+                gameState = GameState.GAME_OVER;
+                spawnExplosion(player.getX(), player.getY());
+                break;
+            }
+        }
+
         // Player Bullet vs Alien Bullet
         for (Bullet pb : bullets) {
             if(!pb.isActive()) continue;
@@ -274,14 +297,48 @@ public class GameEngine implements GLEventListener {
             }
         }
 
-        // Alien vs Player collisions
-        for (Alien alien : aliens) {
-            if (!alien.isActive()) continue;
+        // Player bullets vs Walls
+        for (Bullet b : bullets) {
+            if (!b.isActive()) continue;
+            for (Wall w : walls) {
+                for (WallBricks br : w.getBricks()) {
+                    if (!br.isActive()) continue;
+                    if (br.isActive() && b.collidesWith(br)) {
+                        b.setActive(false);
+                        br.setActive(false);
+                        spawnExplosion(br.getX(), br.getY());
+                        break;
+                    }
+                }
+            }
+        }
 
-            if (alien.collidesWith(player)) {
-                gameState = GameState.GAME_OVER;
-                spawnExplosion(player.getX(), player.getY());
-                break;
+        // Alien bullets vs Wall bricks
+        for (AlienBullet ab : alienBullets) {
+            if (!ab.isActive()) continue;
+            for (Wall wall : walls) {
+                for (WallBricks br : wall.getBricks()) {
+                    if (!br.isActive()) continue;
+                    if (br.isActive() && ab. collidesWith(br)) {
+                        ab.setActive(false);
+                        br.setActive(false);
+                        spawnExplosion(br.getX(), br.getY());
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Aliens vs Walls
+        for (Alien a : aliens) {
+            if (!a.isActive()) continue;
+            for (Wall wall : walls) {
+                for(WallBricks brick : wall.getBricks()) {
+                    if (!brick.isActive()) continue;
+                    if (brick.isActive() && a.collidesWith(brick)) {
+                        brick.setActive(false);
+                    }
+                }
             }
         }
     }
@@ -318,14 +375,18 @@ public class GameEngine implements GLEventListener {
             bullet.display(gl);
         }
 
+        // Render particles
+        for (Particle particle : particles) {
+            particle.display(gl);
+        }
+
         // Render alien bullets
         for (AlienBullet ab : alienBullets) {
             ab.display(gl);
         }
 
-        // Render particles
-        for (Particle particle : particles) {
-            particle.display(gl);
+        for (Wall wall : walls) {
+            wall.display(gl);
         }
 
         // Render UI
