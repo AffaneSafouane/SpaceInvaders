@@ -7,6 +7,7 @@ import com.jogamp.opengl.glu.GLU;
 import game.entities.*;
 
 import java.awt.*;
+import java.awt.geom.Rectangle2D;
 import java.util.*;
 import java.util.List;
 
@@ -158,11 +159,21 @@ public class GameEngine implements GLEventListener {
     }
 
     private void updateGame() {
+        // Update particles
+        particles.removeIf(particle -> !particle.isActive());
+        for (Particle particle : particles) {
+            particle.update();
+        }
+
         if (isRespawning) {
             respawnTimer -= 0.016f;
             if (respawnTimer <= 0) {
                 isRespawning = false;
-                player.setActive(true);
+                if(lives <= 0) {
+                    gameState = GameState.GAME_OVER;
+                } else {
+                    player.setActive(true);
+                }
             }
             return;
         }
@@ -207,12 +218,6 @@ public class GameEngine implements GLEventListener {
         aliens.removeIf(alien -> !alien.isActive());
         for (Alien alien : aliens) {
             alien.update();
-        }
-
-        // Update particles
-        particles.removeIf(particle -> !particle.isActive());
-        for (Particle particle : particles) {
-            particle.update();
         }
 
         walls.removeIf(Wall::isDestroyed);
@@ -341,15 +346,12 @@ public class GameEngine implements GLEventListener {
                 spawnExplosion(player.getX(), player.getY());
                 ab.setActive(false);
                 lives--;
-                if(lives <= 0) {
-                    gameState = GameState.GAME_OVER;
-                } else {
-                    isRespawning = true;
-                    respawnTimer = RESPAWN_DELAY;
-                    player.setActive(false); // Make player disappear during the pause
-                    bullets.clear();
-                    alienBullets.clear();
-                }
+
+                isRespawning = true;
+                respawnTimer = RESPAWN_DELAY;
+                player.setActive(false); // Make player disappear during the pause
+                bullets.clear();
+                alienBullets.clear();
                 break;
             }
         }
@@ -451,20 +453,19 @@ public class GameEngine implements GLEventListener {
     }
 
     private void renderUI(GL2 gl) {
-        // Simple score display (you can enhance this with text rendering)
-        gl.glColor3f(1.0f, 1.0f, 1.0f);
+        // Score display with text rendering
+        textRenderer.beginRendering((int)SCREEN_WIDTH, (int)SCREEN_HEIGHT);
+        textRenderer.setColor(Color.WHITE);
 
-        // Draw score indicator (simple bars representing score/10)
-        int scoreBars = score / 10;
-        for (int i = 0; i < Math.min(scoreBars, 55); i++) {
-            float x = 10 + i * 12;
-            gl.glBegin(GL2.GL_QUADS);
-            gl.glVertex2f(x, SCREEN_HEIGHT - 20);
-            gl.glVertex2f(x + 8, SCREEN_HEIGHT - 20);
-            gl.glVertex2f(x + 8, SCREEN_HEIGHT - 10);
-            gl.glVertex2f(x, SCREEN_HEIGHT - 10);
-            gl.glEnd();
-        }
+        // Draw actual Score text in the top-left
+        textRenderer.draw("SCORE: " + score, 20, (int)SCREEN_HEIGHT - 40);
+
+        // Draw current Level in the top-right
+        String levelText = "LEVEL: " + level;
+        Rectangle2D levelBounds = textRenderer.getBounds(levelText);
+        textRenderer.draw(levelText, (int)(SCREEN_WIDTH - levelBounds.getWidth() - 20), (int)SCREEN_HEIGHT - 40);
+
+        textRenderer.endRendering();
 
         // Game state messages
         if (gameState == GameState.GAME_OVER) {

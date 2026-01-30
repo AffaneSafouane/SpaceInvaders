@@ -37,13 +37,13 @@ public class Alien extends GraphicalObject {
         // Different colors for different types
         switch (type) {
             case 0:
-                gl.glColor3f(1.0f, 0.0f, 0.0f);  // Red
+                gl.glColor3f(0.0f, 0.0f, 1.0f);
                 break;
             case 1:
-                gl.glColor3f(1.0f, 0.5f, 0.0f);  // Orange
+                gl.glColor3f(1.0f, 0.5f, 0.0f);
                 break;
             case 2:
-                gl.glColor3f(1.0f, 1.0f, 0.0f);  // Yellow
+                gl.glColor3f(0.8f, 0.8f, 0.0f);
                 break;
         }
 
