@@ -34,6 +34,9 @@ public class GameEngine implements GLEventListener {
     private enum GameState { PLAYING, GAME_OVER, VICTORY }
     private GameState gameState = GameState.PLAYING;
     private int score = 0;
+    private int level = 1;
+    private float levelTransitionTimer = 0;
+    private static final float TRANSITION_DELAY = 2.0f;
 
     // Utility
     private final Random random;
@@ -65,10 +68,15 @@ public class GameEngine implements GLEventListener {
         gl.glClearColor(0.0f, 0.0f, 0.1f, 1.0f);
 
         // Initialize game objects
-        initGame();
+        initGame(true);
     }
 
-    private void initGame() {
+    private void initGame(boolean resetLevel) {
+        if (resetLevel) {
+            level = 1;
+            score = 0;
+        }
+
         // Initialize player
         player = new Player(SCREEN_WIDTH / 2, 50);
 
@@ -77,7 +85,9 @@ public class GameEngine implements GLEventListener {
         int rows = 5;
         int cols = 11;
         float startX = 100;
-        float startY = 450;
+
+        // Difficulty Scaling
+        float startY = Math.max(450 - (level - 1) * 30, 250);
         float spacingX = 60;
         float spacingY = 50;
 
@@ -105,8 +115,7 @@ public class GameEngine implements GLEventListener {
 
         // Reset game state
         gameState = GameState.PLAYING;
-        score = 0;
-        swarmXSpeed = 2.0f;
+        swarmXSpeed = 2.0f + (level * 0.5f);
         swarmDirection = 1;
         swarmMoveTimer = 0;
     }
@@ -119,7 +128,7 @@ public class GameEngine implements GLEventListener {
         gl.glClear(GL2.GL_COLOR_BUFFER_BIT | GL2.GL_DEPTH_BUFFER_BIT);
         gl.glLoadIdentity();
 
-        if (gameState == GameState.PLAYING) {
+        if (gameState == GameState.PLAYING || gameState == GameState.VICTORY) {
             updateGame();
         }
 
@@ -127,13 +136,23 @@ public class GameEngine implements GLEventListener {
         renderGame(gl);
 
         // Check for restart
-        if ((gameState == GameState.GAME_OVER || gameState == GameState.VICTORY)
+        if ((gameState == GameState.GAME_OVER)
                 && inputHandler.isRestartPressed()) {
-            initGame();
+            initGame(true);
         }
     }
 
     private void updateGame() {
+        if (gameState == GameState.VICTORY) {
+            levelTransitionTimer += 0.016f;
+            if (levelTransitionTimer >= TRANSITION_DELAY) {
+                level++;
+                levelTransitionTimer = 0;
+                gameState = GameState.PLAYING;
+                initGame(false);
+            }
+            return;
+        }
         // Update player movement
         float vx = 0;
         if (inputHandler.isLeftPressed()) vx -= 1;
@@ -177,7 +196,7 @@ public class GameEngine implements GLEventListener {
         checkCollisions();
 
         // Check win/lose conditions
-        if (aliens.isEmpty()) {
+        if (aliens.isEmpty() && gameState == GameState.PLAYING) {
             gameState = GameState.VICTORY;
         }
 
@@ -191,7 +210,7 @@ public class GameEngine implements GLEventListener {
     }
 
     private void updateSwarmMovement() {
-        swarmMoveTimer += 0.016f;  // Approximately 1/60th of a second
+        swarmMoveTimer += 0.016f;
 
         if (swarmMoveTimer >= SWARM_MOVE_INTERVAL) {
             swarmMoveTimer = 0;
@@ -225,7 +244,7 @@ public class GameEngine implements GLEventListener {
                     alien.move(-moveAmount, -20);  // Undo horizontal, move down
                 }
                 swarmDirection *= -1;
-                swarmXSpeed *= 1.1f;  // Speed up
+                swarmXSpeed *= 1.2f;  // Speed up
             }
 
             // Shooting Logic, only the front-line aliens fire
@@ -297,7 +316,7 @@ public class GameEngine implements GLEventListener {
             }
         }
 
-        // Player bullets vs Walls
+        // Player bullets vs Wall bricks
         for (Bullet b : bullets) {
             if (!b.isActive()) continue;
             for (Wall w : walls) {
@@ -420,7 +439,6 @@ public class GameEngine implements GLEventListener {
             gl.glVertex2f(SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 2 + 30);
             gl.glEnd();
         } else if (gameState == GameState.VICTORY) {
-            // Draw "VICTORY" indicator
             gl.glColor3f(0.0f, 1.0f, 0.0f);
             gl.glBegin(GL2.GL_QUADS);
             gl.glVertex2f(SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 2 - 30);

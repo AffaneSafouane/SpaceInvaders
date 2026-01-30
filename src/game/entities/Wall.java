@@ -16,6 +16,11 @@ public class Wall {
 
         for (int r = 0; r < rows; r++) {
             for (int c = 0; c < cols; c++) {
+                // Skip top corners for the "rounded" effect
+                if (r == rows - 1 && (c == 0 || c == cols - 1)) continue;
+                // Skip bottom middle for the "arch" tunnel
+                if (r < 2 && (c >= 2 && c <= 5)) continue;
+
                 float x = centerX + (c - cols / 2.0f) * spacing;
                 float y = centerY + (r - rows / 2.0f) * spacing;
                 bricks.add(new WallBricks(x, y));
