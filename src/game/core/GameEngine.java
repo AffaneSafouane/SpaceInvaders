@@ -6,7 +6,11 @@ import com.jogamp.opengl.GLEventListener;
 import com.jogamp.opengl.glu.GLU;
 import game.entities.*;
 
+import java.awt.*;
 import java.util.*;
+import java.util.List;
+
+import com.jogamp.opengl.util.awt.TextRenderer;
 
 /**
  * The main game engine implementing GLEventListener.
@@ -31,16 +35,24 @@ public class GameEngine implements GLEventListener {
 
     private final InputHandler inputHandler;
 
-    private enum GameState { PLAYING, GAME_OVER, VICTORY }
+    private enum GameState { PLAYING, GAME_OVER, VICTORY, LEVEL_UP }
     private GameState gameState = GameState.PLAYING;
     private int score = 0;
     private int level = 1;
     private float levelTransitionTimer = 0;
     private static final float TRANSITION_DELAY = 2.0f;
+    private int lives = 3;
+
+    private boolean isRespawning = false;
+    private float respawnTimer = 0;
+    private static final float RESPAWN_DELAY = 1.5f;
+
+    private static final int MAX_LEVEL = 3;
 
     // Utility
     private final Random random;
     private final GLU glu;
+    private TextRenderer textRenderer;
 
     public GameEngine(InputHandler inputHandler) {
         this.inputHandler = inputHandler;
@@ -67,18 +79,21 @@ public class GameEngine implements GLEventListener {
         // Set background color (black for space)
         gl.glClearColor(0.0f, 0.0f, 0.1f, 1.0f);
 
+        textRenderer = new TextRenderer((new Font("Monospaced", Font.BOLD, 36)));
+
         // Initialize game objects
         initGame(true);
     }
 
     private void initGame(boolean resetLevel) {
+        // Initialize player
+        player = new Player(SCREEN_WIDTH / 2, 70);
+
         if (resetLevel) {
             level = 1;
             score = 0;
+            lives = 3;
         }
-
-        // Initialize player
-        player = new Player(SCREEN_WIDTH / 2, 50);
 
         // Initialize aliens in a grid
         aliens = new ArrayList<>();
@@ -128,7 +143,7 @@ public class GameEngine implements GLEventListener {
         gl.glClear(GL2.GL_COLOR_BUFFER_BIT | GL2.GL_DEPTH_BUFFER_BIT);
         gl.glLoadIdentity();
 
-        if (gameState == GameState.PLAYING || gameState == GameState.VICTORY) {
+        if (gameState == GameState.PLAYING || gameState == GameState.VICTORY || gameState == GameState.LEVEL_UP) {
             updateGame();
         }
 
@@ -143,7 +158,16 @@ public class GameEngine implements GLEventListener {
     }
 
     private void updateGame() {
-        if (gameState == GameState.VICTORY) {
+        if (isRespawning) {
+            respawnTimer -= 0.016f;
+            if (respawnTimer <= 0) {
+                isRespawning = false;
+                player.setActive(true);
+            }
+            return;
+        }
+
+        if (gameState == GameState.LEVEL_UP) {
             levelTransitionTimer += 0.016f;
             if (levelTransitionTimer >= TRANSITION_DELAY) {
                 level++;
@@ -153,6 +177,7 @@ public class GameEngine implements GLEventListener {
             }
             return;
         }
+
         // Update player movement
         float vx = 0;
         if (inputHandler.isLeftPressed()) vx -= 1;
@@ -197,7 +222,11 @@ public class GameEngine implements GLEventListener {
 
         // Check win/lose conditions
         if (aliens.isEmpty() && gameState == GameState.PLAYING) {
-            gameState = GameState.VICTORY;
+            if (level >= MAX_LEVEL) {
+                gameState = GameState.VICTORY;
+            } else {
+                gameState = GameState.LEVEL_UP;
+            }
         }
 
         // Check if any alien reached the player
@@ -309,9 +338,18 @@ public class GameEngine implements GLEventListener {
         for (AlienBullet ab : alienBullets) {
             if(!ab.isActive()) continue;
             if(ab.collidesWith(player)) {
-                ab.setActive(false);
-                gameState = GameState.GAME_OVER;
                 spawnExplosion(player.getX(), player.getY());
+                ab.setActive(false);
+                lives--;
+                if(lives <= 0) {
+                    gameState = GameState.GAME_OVER;
+                } else {
+                    isRespawning = true;
+                    respawnTimer = RESPAWN_DELAY;
+                    player.setActive(false); // Make player disappear during the pause
+                    bullets.clear();
+                    alienBullets.clear();
+                }
                 break;
             }
         }
@@ -430,22 +468,24 @@ public class GameEngine implements GLEventListener {
 
         // Game state messages
         if (gameState == GameState.GAME_OVER) {
-            // Draw "GAME OVER" indicator
-            gl.glColor3f(1.0f, 0.0f, 0.0f);
-            gl.glBegin(GL2.GL_QUADS);
-            gl.glVertex2f(SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 2 - 30);
-            gl.glVertex2f(SCREEN_WIDTH / 2 + 100, SCREEN_HEIGHT / 2 - 30);
-            gl.glVertex2f(SCREEN_WIDTH / 2 + 100, SCREEN_HEIGHT / 2 + 30);
-            gl.glVertex2f(SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 2 + 30);
-            gl.glEnd();
+            drawText("GAME OVER", SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT * 0.80f, Color.RED);
         } else if (gameState == GameState.VICTORY) {
-            gl.glColor3f(0.0f, 1.0f, 0.0f);
-            gl.glBegin(GL2.GL_QUADS);
-            gl.glVertex2f(SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 2 - 30);
-            gl.glVertex2f(SCREEN_WIDTH / 2 + 100, SCREEN_HEIGHT / 2 - 30);
-            gl.glVertex2f(SCREEN_WIDTH / 2 + 100, SCREEN_HEIGHT / 2 + 30);
-            gl.glVertex2f(SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 2 + 30);
-            gl.glEnd();
+            drawText("MISSION ACCOMPLISHED", SCREEN_WIDTH / 2 - 200, SCREEN_HEIGHT * 0.80f, Color.GREEN);
+        } else if (gameState == GameState.LEVEL_UP) {
+            drawText("LEVEL " + level + " CLEARED", SCREEN_WIDTH / 2 - 180, SCREEN_HEIGHT * 0.80f, Color.CYAN);
+        }
+
+        float startX = 30.0f;
+        float startY = 25.0f;
+        float spacing = 35.0f;
+
+        // Use half the default player size for the icons
+        float miniWidth = Player.WIDTH / 2;
+        float miniHeight = Player.HEIGHT / 2;
+
+        for (int i = 0; i < lives; i++) {
+            float xPos = startX + i * spacing;
+            Player.displayNormalized(gl, xPos, startY, miniWidth, miniHeight);
         }
     }
 
@@ -472,5 +512,12 @@ public class GameEngine implements GLEventListener {
     @Override
     public void dispose(GLAutoDrawable drawable) {
         // Cleanup if needed
+    }
+
+    private void drawText(String text, float x, float y, Color color) {
+        textRenderer.beginRendering((int)SCREEN_WIDTH, (int)SCREEN_HEIGHT);
+        textRenderer.setColor(color);
+        textRenderer.draw(text, (int)x, (int)y);
+        textRenderer.endRendering();
     }
 }
