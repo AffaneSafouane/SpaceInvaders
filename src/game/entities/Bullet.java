@@ -2,10 +2,6 @@ package game.entities;
 
 import com.jogamp.opengl.GL2;
 
-/**
- * Projectile fired by the player.
- * Moves upward and deactivates when leaving the screen.
- */
 public class Bullet extends GraphicalObject {
     private static final float SPEED = 8.0f;
     private static final float WIDTH = 3.0f;
@@ -13,7 +9,7 @@ public class Bullet extends GraphicalObject {
     private static final float SCREEN_HEIGHT = 600.0f;
 
     public Bullet(float x, float y) {
-        super(x, y);
+        super(x, y, 0.0f, 0, 0, 0, 1.0f, 1.0f, 1.0f, 1.0f);
     }
 
     @Override
@@ -21,36 +17,37 @@ public class Bullet extends GraphicalObject {
         if (!active) return;
 
         // Move upward
-        y += SPEED;
+        translate(0, SPEED, 0);
 
         // Deactivate if off-screen
-        if (y > SCREEN_HEIGHT) {
+        if (getY() > SCREEN_HEIGHT) {
             active = false;
         }
     }
 
     @Override
-    public void display(GL2 gl) {
-        if (!active) return;
+    public void displayNormalized(GL2 gl) {
+        float hw = WIDTH / 2f;
+        float hh = HEIGHT / 2f;
 
-        gl.glColor3f(1.0f, 1.0f, 1.0f);  // White bullet
         gl.glBegin(GL2.GL_QUADS);
-
-        gl.glVertex2f(x - WIDTH, y + HEIGHT / 2);
-        gl.glVertex2f(x + WIDTH, y + HEIGHT / 2);
-        gl.glVertex2f(x + WIDTH, y - HEIGHT / 2);
-        gl.glVertex2f(x - WIDTH, y - HEIGHT / 2);
-
+        gl.glVertex3f(-hw,  hh, 0);
+        gl.glVertex3f( hw,  hh, 0);
+        gl.glVertex3f( hw, -hh, 0);
+        gl.glVertex3f(-hw, -hh, 0);
         gl.glEnd();
     }
 
     @Override
     public float[] getBounds() {
+        float hw = WIDTH / 2f;
+        float hh = HEIGHT / 2f;
+        float halfDepth = 0.5f;
+
         return new float[] {
-                x - WIDTH,
-                x + WIDTH,
-                y - HEIGHT / 2,
-                y + HEIGHT / 2
+                getX() - hw, getX() + hw,
+                getY() - hh, getY() + hh,
+                getZ() - halfDepth, getZ() + halfDepth
         };
     }
 }

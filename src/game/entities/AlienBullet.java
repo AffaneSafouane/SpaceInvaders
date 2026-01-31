@@ -12,7 +12,7 @@ public class AlienBullet extends GraphicalObject {
     private static final float HEIGHT = 15.0f;
 
     public AlienBullet(float x, float y) {
-        super(x, y);
+        super(x, y, 0.0f, 0, 0, 0, 1.0f, 1.0f, 1.0f, 1.0f);
     }
 
     @Override
@@ -20,36 +20,37 @@ public class AlienBullet extends GraphicalObject {
         if (!active) return;
 
         // Move downward
-        y -= SPEED;
+        translate(0, -SPEED, 0);
 
         // Deactivate if off-screen
-        if (y + (HEIGHT / 2) < 0) {
+        if (getY() + (HEIGHT / 2) < 0) {
             active = false;
         }
     }
 
     @Override
-    public void display(GL2 gl) {
-        if (!active) return;
+    public void displayNormalized(GL2 gl) {
+        float hw = WIDTH / 2f;
+        float hh = HEIGHT / 2f;
 
-        gl.glColor3f(1.0f, 1.0f, 1.0f);  // White bullet
         gl.glBegin(GL2.GL_QUADS);
-
-        gl.glVertex2f(x - WIDTH, y + HEIGHT / 2);
-        gl.glVertex2f(x + WIDTH, y + HEIGHT / 2);
-        gl.glVertex2f(x + WIDTH, y - HEIGHT / 2);
-        gl.glVertex2f(x - WIDTH, y - HEIGHT / 2);
-
+        gl.glVertex3f(-hw,  hh, 0);
+        gl.glVertex3f( hw,  hh, 0);
+        gl.glVertex3f( hw, -hh, 0);
+        gl.glVertex3f(-hw, -hh, 0);
         gl.glEnd();
     }
 
     @Override
     public float[] getBounds() {
+        float hw = WIDTH / 2f;
+        float hh = HEIGHT / 2f;
+        float halfDepth = 0.5f;
+
         return new float[] {
-                x - WIDTH,
-                x + WIDTH,
-                y - HEIGHT / 2,
-                y + HEIGHT / 2
+                getX() - hw, getX() + hw,
+                getY() - hh, getY() + hh,
+                getZ() - halfDepth, getZ() + halfDepth
         };
     }
 }

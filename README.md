@@ -64,27 +64,10 @@ game/
 
 ## Détails techniques
 
-### Système de coordonnées
-- Projection orthographique fixe : 800x600 unités
-- Origine en bas à gauche
-- Utilise `gluOrtho2D(0, 800, 0, 600)`
-
-### Détection de collision
-- Algorithme AABB (Axis-Aligned Bounding Box)
-- Implémenté dans `GraphicalObject.collidesWith()`
-- Format : `[minX, maxX, minY, maxY]`
-
 ### Comportement d'essaim
 - Les aliens se déplacent en groupe toutes les 0,5 secondes
 - La vitesse augmente de 20 % après chaque changement de direction
 - Descente de 20 unités lorsqu'ils touchent les bords de l'écran
-
-### Système de particules
-- 20 particules générées par explosion
-- Vélocités aléatoires : `vx, vy ∈ [-2.5, 2.5]`
-- Simulation de gravité avec accélération vers le bas
-- Fondu alpha : la vie passe de 1,0 à 0,0
-- Mélange OpenGL activé pour la transparence
 
 ### Pipeline de rendu
 1. Effacer l'écran (fond bleu foncé)
@@ -126,7 +109,7 @@ private Clip explosionSound;
 
 ### Ajouter des scores bonus
 1. Suivi de seuil : Créez une variable nextLifeThreshold = 1000. Chaque fois que le score dépasse cette valeur, déclenchez la récompense.
-2. La récompense : Incrémentez la variable lives
+2. La récompense : Incrémentez la variable 'lives'
 3. Difficulté évolutive : Pour maintenir le défi, nous pouvons augmenter l'exigence pour la prochaine vie
 
 ## Notes de performance

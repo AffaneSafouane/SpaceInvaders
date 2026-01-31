@@ -4,18 +4,19 @@ import com.jogamp.opengl.GL2;
 
 /**
  * The player-controlled spaceship.
- * Handles movement with screen boundary constraints.
+ * Now supports a Z coordinate and 3D AABB bounds for 2.5D rendering.
  */
 public class Player extends GraphicalObject {
     private static final float SPEED = 5.0f;
     public static final float WIDTH = 40.0f;
     public static final float HEIGHT = 30.0f;
     private static final float SCREEN_WIDTH = 800.0f;
+    private static final float DEPTH = 0.1f; // small thickness in Z
 
     private float velocityX = 0;
 
-    public Player(float x, float y) {
-        super(x, y);
+    public Player(float x, float y, float z) {
+        super(x, y, z, 0, 0, 0, 0.0f, 1.0f, 0.0f, 1.0f);
     }
 
     /**
@@ -29,61 +30,122 @@ public class Player extends GraphicalObject {
     public void update() {
         if (!active) return;
 
-        // Update position
-        x += velocityX * SPEED;
+        float newX = getX() + velocityX * SPEED;
 
-        // Enforce screen boundaries
-        if (x < WIDTH / 2) {
-            x = WIDTH / 2;
-        } else if (x > SCREEN_WIDTH - WIDTH / 2) {
-            x = SCREEN_WIDTH - WIDTH / 2;
-        }
-    }
+        // Boundary checks
+        if (newX < WIDTH / 2) newX = WIDTH / 2;
+        if (newX > SCREEN_WIDTH - WIDTH / 2) newX = SCREEN_WIDTH - WIDTH / 2;
 
-    public static void displayNormalized(GL2 gl, float x, float y, float width, float height) {
-        gl.glColor3f(0.0f, 1.0f, 0.0f);  // Green player ship
-        gl.glBegin(GL2.GL_TRIANGLES);
-
-        // Main body (triangle pointing up)
-        gl.glVertex2f(x, y + height / 2);
-        gl.glVertex2f(x - width / 2, y - height / 2);
-        gl.glVertex2f(x + width / 2, y - height / 2);
-        gl.glEnd();
-
-        // Add side wings (proportional to width/height)
-        float wingW = width / 4;
-        float wingH = height / 6;
-
-        gl.glColor3f(0.0f, 0.8f, 0.0f);
-        gl.glBegin(GL2.GL_QUADS);
-        // Left wing
-        gl.glVertex2f(x - width / 2, y - height / 2);
-        gl.glVertex2f(x - width / 2 - wingW, y - height / 2 - wingH);
-        gl.glVertex2f(x - width / 2 - wingW/2, y - height / 2 - wingH);
-        gl.glVertex2f(x - width / 2, y - height / 2);
-
-        // Right wing
-        gl.glVertex2f(x + width / 2, y - height / 2);
-        gl.glVertex2f(x + width / 2 + wingW, y - height / 2 - wingH);
-        gl.glVertex2f(x + width / 2 + wingW/2, y - height / 2 - wingH);
-        gl.glVertex2f(x + width / 2, y - height / 2);
-        gl.glEnd();
+        setX(newX);
     }
 
     @Override
-    public void display(GL2 gl) {
+    public void displayNormalized(GL2 gl) {
         if (!active) return;
 
-        displayNormalized(gl, x, y, WIDTH, HEIGHT);
+        float x = 0;
+        float y = 0;
+        float z = 0;
+        float w = WIDTH;
+        float h = HEIGHT;
+
+        float hw = w / 2;
+        float hh = h / 2;
+        float depth = 10.0f;
+
+        gl.glBegin(GL2.GL_TRIANGLES);
+
+        // Main body
+        gl.glColor3f(0.0f, 1.0f, 0.0f);
+        gl.glVertex3f(x, y + hh, z + depth/2);
+        gl.glColor3f(0.0f, 0.8f, 0.0f);
+        gl.glVertex3f(x - hw, y - hh, z + depth/2);
+        gl.glColor3f(0.0f, 0.9f, 0.0f);
+        gl.glVertex3f(x + hw, y - hh, z + depth/2);
+
+        // BACK face
+        gl.glColor3f(0.0f, 0.5f, 0.0f);
+        gl.glVertex3f(x, y + hh, z - depth/2);
+        gl.glColor3f(0.0f, 0.4f, 0.0f);
+        gl.glVertex3f(x + hw, y - hh, z - depth/2);
+        gl.glColor3f(0.0f, 0.4f, 0.0f);
+        gl.glVertex3f(x - hw, y - hh, z - depth/2);
+
+        // Left side
+        gl.glColor3f(0.0f, 0.7f, 0.0f);
+        gl.glVertex3f(x - hw, y - hh, z + depth/2);
+        gl.glVertex3f(x - hw, y - hh, z - depth/2);
+        gl.glVertex3f(x, y + hh, z - depth/2);
+
+        gl.glVertex3f(x, y + hh, z - depth/2);
+        gl.glVertex3f(x, y + hh, z + depth/2);
+        gl.glVertex3f(x - hw, y - hh, z + depth/2);
+
+        // Right side
+        gl.glColor3f(0.0f, 0.7f, 0.0f);
+        gl.glVertex3f(x + hw, y - hh, z + depth/2);
+        gl.glVertex3f(x + hw, y - hh, z - depth/2);
+        gl.glVertex3f(x, y + hh, z - depth/2);
+
+        gl.glVertex3f(x, y + hh, z - depth/2);
+        gl.glVertex3f(x, y + hh, z + depth/2);
+        gl.glVertex3f(x + hw, y - hh, z + depth/2);
+
+        gl.glEnd();
+
+        // Cockpit
+        gl.glBegin(GL2.GL_QUADS);
+        // Front face of cockpit
+        gl.glColor3f(0.2f, 0.6f, 0.2f);
+        gl.glVertex3f(x - hw/3, y, z + depth/2 + 1);
+        gl.glVertex3f(x + hw/3, y, z + depth/2 + 1);
+        gl.glColor3f(0.0f, 0.4f, 0.0f);
+        gl.glVertex3f(x + hw/3, y - hh/2, z + depth/2 + 1);
+        gl.glVertex3f(x - hw/3, y - hh/2, z + depth/2 + 1);
+
+        // Back face of cockpit
+        gl.glColor3f(0.1f, 0.3f, 0.1f);
+        gl.glVertex3f(x - hw/3, y, z - depth/2 - 1);
+        gl.glVertex3f(x + hw/3, y, z - depth/2 - 1);
+        gl.glVertex3f(x + hw/3, y - hh/2, z - depth/2 - 1);
+        gl.glVertex3f(x - hw/3, y - hh/2, z - depth/2 - 1);
+
+        // Top of cockpit
+        gl.glColor3f(0.3f, 0.8f, 0.3f);
+        gl.glVertex3f(x - hw/3, y, z + depth/2 + 1);
+        gl.glVertex3f(x + hw/3, y, z + depth/2 + 1);
+        gl.glVertex3f(x + hw/3, y, z - depth/2 - 1);
+        gl.glVertex3f(x - hw/3, y, z - depth/2 - 1);
+        gl.glEnd();
+
+        // Wings
+        gl.glBegin(GL2.GL_QUADS);
+        // Left wing
+        gl.glColor3f(0.0f, 0.7f, 0.0f);
+        gl.glVertex3f(x - hw, y - hh, z + depth/2);
+        gl.glVertex3f(x - hw - w/4, y - hh - h/6, z + depth/2);
+        gl.glVertex3f(x - hw - w/4, y - hh - h/6, z - depth/2);
+        gl.glVertex3f(x - hw, y - hh, z - depth/2);
+
+        // Right wing
+        gl.glColor3f(0.0f, 0.7f, 0.0f);
+        gl.glVertex3f(x + hw, y - hh, z + depth/2);
+        gl.glVertex3f(x + hw + w/4, y - hh - h/6, z + depth/2);
+        gl.glVertex3f(x + hw + w/4, y - hh - h/6, z - depth/2);
+        gl.glVertex3f(x + hw, y - hh, z - depth/2);
+        gl.glEnd();
     }
 
     @Override
     public float[] getBounds() {
+        float halfW = WIDTH / 2f;
+        float halfH = HEIGHT / 2f;
+        float halfD = DEPTH / 2f;
+
         return new float[] {
-                x - WIDTH / 2,      // minX
-                x + WIDTH / 2,      // maxX
-                y - HEIGHT / 2,     // minY
-                y + HEIGHT / 2      // maxY
+                getX() - halfW, getX() + halfW,
+                getY() - halfH, getY() + halfH,
+                getZ() - halfD, getZ() + halfD
         };
     }
 }

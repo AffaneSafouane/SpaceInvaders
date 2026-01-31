@@ -69,6 +69,10 @@ public class GameEngine implements GLEventListener {
         gl.glEnable(GL2.GL_BLEND);
         gl.glBlendFunc(GL2.GL_SRC_ALPHA, GL2.GL_ONE_MINUS_SRC_ALPHA);
 
+        // Enable depth testing
+        gl.glEnable(GL2.GL_DEPTH_TEST);
+        gl.glDepthFunc(GL2.GL_LEQUAL);
+
         // Smooth points
         gl.glEnable(GL2.GL_POINT_SMOOTH);
         gl.glHint(GL2.GL_POINT_SMOOTH_HINT, GL2.GL_NICEST);
@@ -88,7 +92,7 @@ public class GameEngine implements GLEventListener {
 
     private void initGame(boolean resetLevel) {
         // Initialize player
-        player = new Player(SCREEN_WIDTH / 2, 70);
+        player = new Player(SCREEN_WIDTH / 2, 70, 0.0f);
 
         if (resetLevel) {
             level = 1;
@@ -111,7 +115,7 @@ public class GameEngine implements GLEventListener {
             for (int col = 0; col < cols; col++) {
                 float x = startX + col * spacingX;
                 float y = startY - row * spacingY;
-                aliens.add(new Alien(x, y, row));
+                aliens.add(new Alien(x, y, 0.0f, row));
             }
         }
 
@@ -409,7 +413,6 @@ public class GameEngine implements GLEventListener {
             float vx = (random.nextFloat() - 0.5f) * 5;
             float vy = (random.nextFloat() - 0.5f) * 5;
 
-            // Random colors (yellow to red)
             float r = 1.0f;
             float g = random.nextFloat();
             float b = 0.0f;
@@ -419,27 +422,33 @@ public class GameEngine implements GLEventListener {
     }
 
     private void renderGame(GL2 gl) {
-        // Render player
+        gl.glClear(GL2.GL_COLOR_BUFFER_BIT | GL2.GL_DEPTH_BUFFER_BIT);
+        gl.glLoadIdentity();
+
+        gl.glTranslatef(0, 0, -800);
+
+        gl.glRotatef(-30, 30, 0, 0);
+
+        gl.glScalef(1.0f, 1.0f, 1.0f);
+
+        gl.glTranslatef(-SCREEN_WIDTH/2, -SCREEN_HEIGHT/2, 0);
+
         if (gameState == GameState.PLAYING) {
             player.display(gl);
         }
 
-        // Render aliens
         for (Alien alien : aliens) {
             alien.display(gl);
         }
 
-        // Render bullets
         for (Bullet bullet : bullets) {
             bullet.display(gl);
         }
 
-        // Render particles
         for (Particle particle : particles) {
             particle.display(gl);
         }
 
-        // Render alien bullets
         for (AlienBullet ab : alienBullets) {
             ab.display(gl);
         }
@@ -448,26 +457,35 @@ public class GameEngine implements GLEventListener {
             wall.display(gl);
         }
 
-        // Render UI
+        gl.glMatrixMode(GL2.GL_PROJECTION);
+        gl.glPushMatrix();
+        gl.glLoadIdentity();
+        gl.glOrtho(0, SCREEN_WIDTH, 0, SCREEN_HEIGHT, -1, 1);
+
+        gl.glMatrixMode(GL2.GL_MODELVIEW);
+        gl.glPushMatrix();
+        gl.glLoadIdentity();
+
         renderUI(gl);
+
+        gl.glPopMatrix();
+        gl.glMatrixMode(GL2.GL_PROJECTION);
+        gl.glPopMatrix();
+        gl.glMatrixMode(GL2.GL_MODELVIEW);
     }
 
     private void renderUI(GL2 gl) {
-        // Score display with text rendering
         textRenderer.beginRendering((int)SCREEN_WIDTH, (int)SCREEN_HEIGHT);
         textRenderer.setColor(Color.WHITE);
 
-        // Draw actual Score text in the top-left
         textRenderer.draw("SCORE: " + score, 20, (int)SCREEN_HEIGHT - 40);
 
-        // Draw current Level in the top-right
         String levelText = "LEVEL: " + level;
         Rectangle2D levelBounds = textRenderer.getBounds(levelText);
         textRenderer.draw(levelText, (int)(SCREEN_WIDTH - levelBounds.getWidth() - 20), (int)SCREEN_HEIGHT - 40);
 
         textRenderer.endRendering();
 
-        // Game state messages
         if (gameState == GameState.GAME_OVER) {
             drawText("GAME OVER", SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT * 0.80f, Color.RED);
         } else if (gameState == GameState.VICTORY) {
@@ -476,18 +494,30 @@ public class GameEngine implements GLEventListener {
             drawText("LEVEL " + level + " CLEARED", SCREEN_WIDTH / 2 - 180, SCREEN_HEIGHT * 0.80f, Color.CYAN);
         }
 
-        float startX = 30.0f;
-        float startY = 25.0f;
-        float spacing = 35.0f;
+        drawLives(gl);
+    }
 
-        // Use half the default player size for the icons
-        float miniWidth = Player.WIDTH / 2;
-        float miniHeight = Player.HEIGHT / 2;
+    private void drawLives(GL2 gl) {
+        float startX = 30.0f;
+        float startY = 30.0f;
+        float spacing = 35.0f;
+        float w = 15.0f;
+        float h = 10.0f;
+
+        gl.glDisable(GL2.GL_DEPTH_TEST);
 
         for (int i = 0; i < lives; i++) {
-            float xPos = startX + i * spacing;
-            Player.displayNormalized(gl, xPos, startY, miniWidth, miniHeight);
+            float x = startX + i * spacing;
+
+            gl.glBegin(GL2.GL_TRIANGLES);
+            gl.glColor3f(0.0f, 1.0f, 0.0f);
+            gl.glVertex2f(x, startY + h);
+            gl.glVertex2f(x - w, startY);
+            gl.glVertex2f(x + w, startY);
+            gl.glEnd();
         }
+
+        gl.glEnable(GL2.GL_DEPTH_TEST);
     }
 
     @Override
@@ -499,12 +529,11 @@ public class GameEngine implements GLEventListener {
 
         gl.glViewport(0, 0, width, height);
 
-        // Set up orthographic projection (2D)
         gl.glMatrixMode(GL2.GL_PROJECTION);
         gl.glLoadIdentity();
 
-        // Fixed coordinate system: 800x600
-        glu.gluOrtho2D(0, SCREEN_WIDTH, 0, SCREEN_HEIGHT);
+        float aspect = (float) width / height;
+        glu.gluPerspective(45.0f, aspect, 0.1f, 1000.0f);
 
         gl.glMatrixMode(GL2.GL_MODELVIEW);
         gl.glLoadIdentity();
